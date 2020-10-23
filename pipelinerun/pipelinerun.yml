@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: build-deploy-
+spec:
+  pipelineRef:
+    name: build-deploy
+  serviceAccountName: pipeline
+  resources:
+  - name: appImage
+    resourceRef:
+      name: app-image
+  - name: gitOpsSource
+    resourceRef:
+      name: gitops-git-source
+  - name: appSource
+    resourceSpec:
+      type: git
+      params:
+      - name: revision
+        value: $(params.buildRevision)
+      - name: url
+        value: git@github.com:example/app.git
+  params:
+  - name: buildRevision
+    value: 'd9c7ccb0713da882d8373169e2a1d705f5959386'
+---

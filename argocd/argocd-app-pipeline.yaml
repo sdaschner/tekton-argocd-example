@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-pipeline
+  namespace: argocd
+spec:
+  destination:
+    namespace: tekton-pipelines
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: pipeline
+    repoURL: https://github.com/example/app-config.git
+    targetRevision: HEAD
+  syncPolicy:
+    automated: {}
+---

@@ -1,0 +1,62 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-java-app
+spec:
+  params:
+  - name: buildRevision
+  - name: destinationImage
+    description: Parameter Description
+    default: "$(outputs.resources.builtImage.url)"
+  resources:
+    inputs:
+    - name: source
+      type: git
+    outputs:
+    - name: builtImage
+      type: image
+
+  steps:
+  - name: build-sources
+    image: sdaschner/maven-jdk14:quarkus-deps-1.5.1-b5
+    workingDir: "/workspace/source/app/"
+    command:
+    - /usr/bin/mvn
+    args:
+    - clean
+    - package
+    env:
+    - name: MAVEN_OPTS
+      value: "-Xms2G -Xmx4G"
+    resources:
+      requests:
+        cpu: '2'
+        memory: '4Gi'
+
+  - name: build-image
+    image: quay.io/buildah/stable
+    workingDir: "/workspace/source/app/"
+    command: ['buildah', 'bud', '--tls-verify=false', '--layers', '-f', 'Dockerfile', '-t', '$(inputs.params.destinationImage):$(inputs.params.buildRevision)', '.']
+    volumeMounts:
+    - name: varlibc
+      mountPath: /var/lib/containers
+    securityContext:
+      allowPrivilegeEscalation: true
+      runAsUser: 0
+      privileged: true
+
+  - name: build-push
+    image: quay.io/buildah/stable
+    command: ["buildah", "push", "--tls-verify=false", "$(inputs.params.destinationImage):$(inputs.params.buildRevision)", "docker://$(inputs.params.destinationImage):$(inputs.params.buildRevision)"]
+    volumeMounts:
+    - name: varlibc
+      mountPath: /var/lib/containers
+    securityContext:
+      allowPrivilegeEscalation: true
+      runAsUser: 0
+      privileged: true
+
+  volumes:
+  - name: varlibc
+    emptyDir: {}
+---

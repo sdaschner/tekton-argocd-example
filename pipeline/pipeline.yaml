@@ -1,0 +1,95 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: build-deploy
+spec:
+  params:
+  - name: buildRevision
+    description: The revision of the build
+  resources:
+  - name: appSource
+    type: git
+  - name: appImage
+    type: image
+  - name: gitOpsSource
+    type: git
+
+  tasks:
+  - name: build-java-app
+    taskRef:
+      name: build-java-app
+    resources:
+      inputs:
+      - name: source
+        resource: appSource
+      outputs:
+      - name: builtImage
+        resource: appImage
+    params:
+    - name: buildRevision
+      value: $(params.buildRevision)
+
+  - name: deploy-systemtest
+    taskRef:
+      name: deploy
+    runAfter:
+    - build-java-app
+    resources:
+      inputs:
+      - name: source
+        resource: gitOpsSource
+      - name: image
+        resource: appImage
+    params:
+    - name: buildRevision
+      value: $(params.buildRevision)
+    - name: environment
+      value: systemtest
+    - name: argo-app-name
+      value: app-systemtest
+
+  - name: run-systemtest
+    taskRef:
+      name: run-systemtest
+    runAfter:
+    - deploy-systemtest
+    resources:
+      inputs:
+      - name: source
+        resource: appSource
+    params:
+    - name: gateway
+      value: 'systemtest.example.com'
+
+  - name: deploy-prod
+    taskRef:
+      name: deploy
+    runAfter:
+    - run-systemtest
+    resources:
+      inputs:
+      - name: source
+        resource: gitOpsSource
+      - name: image
+        resource: appImage
+    params:
+    - name: buildRevision
+      value: $(params.buildRevision)
+    - name: environment
+      value: production
+    - name: argo-app-name
+      value: app-prod
+
+  - name: run-prod-smoketest
+    taskRef:
+      name: run-smoketest
+    runAfter:
+    - deploy-prod
+    resources:
+      inputs:
+      - name: source
+        resource: appSource
+    params:
+    - name: gateway
+      value: 'example.com'
+---

@@ -1,0 +1,31 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: run-smoketest
+spec:
+  params:
+  - name: gateway
+  resources:
+    inputs:
+    - name: source
+      type: git
+  steps:
+  - name: run-mvn-st
+    image: sdaschner/maven-jdk14:quarkus-deps-1.5.1-b5
+    workingDir: "/workspace/source/app"
+    command:
+    - /usr/bin/mvn
+    args:
+    - test-compile
+    - failsafe:integration-test
+    - failsafe:verify
+    - "-Dapp.test.host=$(inputs.params.gateway)"
+    - "-Dapp.test.port=80"
+    env:
+    - name: MAVEN_OPTS
+      value: "-Xms2G -Xmx4G"
+    resources:
+      requests:
+        cpu: '2'
+        memory: '4Gi'
+---

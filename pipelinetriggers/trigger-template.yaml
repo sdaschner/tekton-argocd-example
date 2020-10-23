@@ -1,0 +1,50 @@
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: build-deploy-template
+  namespace: tekton-pipelines
+spec:
+  params:
+  - name: buildRevision
+    description: The Git commit revision
+  resourcetemplates:
+  - apiVersion: tekton.dev/v1beta1
+    kind: PipelineRun
+    metadata:
+      generateName: build-deploy-
+    spec:
+      pipelineRef:
+        name: build-deploy
+      serviceAccountName: pipeline
+      resources:
+      - name: appImage
+        resourceRef:
+          name: app-image
+      - name: gitOpsSource
+        resourceRef:
+          name: gitops-git-source
+      - name: appSource
+        resourceSpec:
+          type: git
+          params:
+          - name: revision
+            value: $(tt.params.buildRevision)
+          - name: url
+            value: git@github.com:example/app.git
+          - name: refspec
+            value: refs/heads/main:refs/heads/main
+      params:
+      - name: buildRevision
+        value: $(tt.params.buildRevision)
+---
+
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: build-deploy-binding
+  namespace: tekton-pipelines
+spec:
+  params:
+  - name: buildRevision
+    value: $(body.head_commit.id)
+---

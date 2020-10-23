@@ -1,0 +1,69 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: app
+spec:
+  selector:
+    app: app
+  ports:
+  - port: 8080
+---
+
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: app
+        version: v1
+      annotations:
+        revision: "d9c7ccb0713da882d8373169e2a1d705f5959386"
+    spec:
+      containers:
+      - name: app
+        image: docker.example.com/app:3ab0168db5a36ca227c42c07914ee12646355a1f
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          exec:
+            command: ["sh", "-c", "curl -s http://localhost:8080/health | grep -q app"]
+          initialDelaySeconds: 15
+      imagePullSecrets:
+      - name: regsecret
+      restartPolicy: Always
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: app
+spec:
+  hosts:
+  - app
+  http:
+  - route:
+    - destination:
+        host: app
+        subset: v1
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: app
+spec:
+  host: app
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+---
