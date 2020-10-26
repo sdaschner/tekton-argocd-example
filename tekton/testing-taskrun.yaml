@@ -1,0 +1,40 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  name: test-taskrun
+  namespace: tekton-pipelines
+spec:
+  resources:
+    inputs:
+    - name: source
+      resourceSpec:
+        type: git
+        params:
+        - name: url
+          value: git@github.com:sdaschner/coffee-testing.git
+        - name: revision
+          value: tekton-testing
+        - name: refspec
+          value: refs/heads/tekton-testing:refs/heads/tekton-testing
+  serviceAccountName: pipeline
+  taskSpec:
+    resources:
+      inputs:
+      - name: source
+        type: git
+    steps:
+    - name: build-sources
+      image: sdaschner/maven-jdk14:quarkus-deps-1.5.1-b5
+      workingDir: "/workspace/source/coffee-shop/"
+      command: ["sleep", "infinity"]
+
+      # specify other specs, like in the regular task definitions
+
+#      env:
+#      - name: MAVEN_OPTS
+#        value: "-Xms2G -Xmx4G"
+#      resources:
+#        requests:
+#          cpu: '2'
+#          memory: '4Gi'
+---
