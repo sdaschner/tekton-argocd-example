@@ -16,26 +16,20 @@ spec:
       pipelineRef:
         name: build-deploy
       serviceAccountName: pipeline
-      resources:
-      - name: appImage
-        resourceRef:
-          name: app-image
-      - name: gitOpsSource
-        resourceRef:
-          name: gitops-git-source
-      - name: appSource
-        resourceSpec:
-          type: git
-          params:
-          - name: revision
-            value: $(tt.params.buildRevision)
-          - name: url
-            value: git@github.com:example/app.git
-          - name: refspec
-            value: refs/heads/main:refs/heads/main
       params:
       - name: buildRevision
         value: $(tt.params.buildRevision)
+      - name: appGitUrl
+        value: 'git@github.com:example/app.git'
+      - name: configGitUrl
+        value: 'git@github.com:example/app-config.git'
+      - name: appImage
+        value: 'docker.example.com/app'
+      workspaces:
+      - name: app-source
+        emptyDir: {}
+      - name: config-source
+        emptyDir: {}
 ---
 
 apiVersion: triggers.tekton.dev/v1alpha1

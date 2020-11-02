@@ -4,28 +4,34 @@ metadata:
   name: test-taskrun
   namespace: tekton-pipelines
 spec:
-  resources:
-    inputs:
-    - name: source
-      resourceSpec:
-        type: git
-        params:
-        - name: url
-          value: git@github.com:sdaschner/coffee-testing.git
-        - name: revision
-          value: tekton-testing
-        - name: refspec
-          value: refs/heads/tekton-testing:refs/heads/tekton-testing
   serviceAccountName: pipeline
   taskSpec:
-    resources:
-      inputs:
-      - name: source
-        type: git
+    params:
+    - name: buildRevision
+    - name: appGitUrl
+    workspaces:
+    - name: app-source
+
     steps:
+    - name: git-checkout
+      image: alpine/git:v2.26.2
+      workingDir: "$(workspaces.app-source.path)"
+      script: |
+        #!/usr/bin/env sh
+        set -e
+
+        eval $(ssh-agent)
+        ssh-add ~/.ssh/id_*
+        git config --global core.sshCommand 'ssh -o StrictHostKeyChecking=accept-new'
+
+        git init
+        git remote add origin $(params.appGitUrl)
+        git fetch --depth 1 origin $(params.buildRevision)
+        git checkout FETCH_HEAD
+
     - name: build-sources
       image: sdaschner/maven-jdk14:quarkus-deps-1.5.1-b5
-      workingDir: "/workspace/source/coffee-shop/"
+      workingDir: "$(workspaces.app-source.path)/coffee-shop"
       command: ["sleep", "infinity"]
 
       # specify other specs, like in the regular task definitions
@@ -37,4 +43,13 @@ spec:
 #        requests:
 #          cpu: '2'
 #          memory: '4Gi'
+
+  params:
+  - name: buildRevision
+    value: '56512b4a01fc91026b0d42ba2febb1b61c291903'
+  - name: appGitUrl
+    value: 'git@github.com:sdaschner/coffee-testing.git'
+  workspaces:
+  - name: app-source
+    emptyDir: {}
 ---

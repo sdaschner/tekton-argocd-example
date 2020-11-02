@@ -4,15 +4,13 @@ metadata:
   name: deploy
 spec:
   params:
-  - name: buildRevision
   - name: environment
   - name: argo-app-name
-  resources:
-    inputs:
-    - name: image
-      type: image
-    - name: source
-      type: git
+  - name: configGitUrl
+  - name: appImage
+  - name: buildRevision
+  workspaces:
+  - name: config-source
   stepTemplate:
     envFrom:
     - secretRef:
@@ -22,22 +20,38 @@ spec:
       value: argocd-server.argocd
 
   steps:
-  - name: update-yaml
+  - name: git-checkout
     image: alpine/git:v2.26.2
-    workingDir: "/workspace/source/$(inputs.params.environment)/"
+    workingDir: "$(workspaces.config-source.path)"
     script: |
       #!/usr/bin/env sh
       set -e
 
-      echo "updating $(inputs.params.environment) image to $(inputs.resources.image.url):$(inputs.params.buildRevision)"
-      sed -i "s#$(inputs.resources.image.url):[a-zA-Z0-9]\\+#$(inputs.resources.image.url):$(inputs.params.buildRevision)#" app.yaml
+      eval $(ssh-agent)
+      ssh-add ~/.ssh/id_*
+      git config --global core.sshCommand 'ssh -o StrictHostKeyChecking=accept-new'
+
+      git init
+      git remote add origin $(params.configGitUrl)
+      git fetch --depth 1 origin master
+      git checkout master
+
+  - name: update-yaml
+    image: alpine/git:v2.26.2
+    workingDir: "$(workspaces.config-source.path)/$(inputs.params.environment)"
+    script: |
+      #!/usr/bin/env sh
+      set -e
+
+      echo "updating $(inputs.params.environment) image to $(inputs.params.appImage):$(inputs.params.buildRevision)"
+      sed -i "s#$(inputs.params.appImage):[a-zA-Z0-9]\\+#$(inputs.params.appImage):$(inputs.params.buildRevision)#" app.yaml
 
       echo "updating all pods in $(inputs.params.environment) to revision $(inputs.params.buildRevision)"
-      sed -i "s#revision: \"[a-zA-Z0-9]\"\\+#revision: \"$(inputs.params.buildRevision)\"#" app.yaml
+      sed -i "s#revision: \"[a-zA-Z0-9]\\+\"#revision: \"$(inputs.params.buildRevision)\"#" app.yaml
 
   - name: commit-push-changes-gitops
     image: alpine/git:v2.26.2
-    workingDir: "/workspace/source/"
+    workingDir: "$(workspaces.config-source.path)/$(inputs.params.environment)"
     script: |
       #!/usr/bin/env sh
       set -e
@@ -48,7 +62,7 @@ spec:
       git commit --allow-empty -m "[tekton] updating $(inputs.params.environment) image to $(inputs.params.buildRevision)"
       eval $(ssh-agent)
       ssh-add ~/.ssh/id_*
-      git push origin $(inputs.resources.source.revision)
+      git push origin master
 
   - name: wait-for-argocd-rollout
     image: argoproj/argocd:v1.7.7

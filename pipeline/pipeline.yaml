@@ -5,91 +5,102 @@ metadata:
 spec:
   params:
   - name: buildRevision
-    description: The revision of the build
-  resources:
-  - name: appSource
-    type: git
+    description: The revision of the build, i.e. the commit revision of the application repository
+  - name: appGitUrl
+    description: The application repository
+  - name: configGitUrl
+    description: The application config (GitOps) repository
   - name: appImage
-    type: image
-  - name: gitOpsSource
-    type: git
+    description: The application Docker image name
+  workspaces:
+  - name: app-source
+  - name: config-source
 
   tasks:
   - name: build-java-app
     taskRef:
       name: build-java-app
-    resources:
-      inputs:
-      - name: source
-        resource: appSource
-      outputs:
-      - name: builtImage
-        resource: appImage
     params:
     - name: buildRevision
       value: $(params.buildRevision)
+    - name: appGitUrl
+      value: $(params.appGitUrl)
+    - name: appImage
+      value: $(params.appImage)
+    workspaces:
+    - name: app-source
+      workspace: app-source
 
   - name: deploy-systemtest
     taskRef:
       name: deploy
     runAfter:
     - build-java-app
-    resources:
-      inputs:
-      - name: source
-        resource: gitOpsSource
-      - name: image
-        resource: appImage
     params:
-    - name: buildRevision
-      value: $(params.buildRevision)
     - name: environment
       value: systemtest
     - name: argo-app-name
       value: app-systemtest
+    - name: configGitUrl
+      value: $(params.configGitUrl)
+    - name: appImage
+      value: $(params.appImage)
+    - name: buildRevision
+      value: $(params.buildRevision)
+    workspaces:
+    - name: config-source
+      workspace: config-source
 
   - name: run-systemtest
     taskRef:
       name: run-systemtest
     runAfter:
     - deploy-systemtest
-    resources:
-      inputs:
-      - name: source
-        resource: appSource
     params:
     - name: gateway
       value: 'systemtest.example.com'
+    - name: appGitUrl
+      value: $(params.appGitUrl)
+    - name: buildRevision
+      value: $(params.buildRevision)
+    workspaces:
+    - name: app-source
+      workspace: app-source
 
   - name: deploy-prod
     taskRef:
       name: deploy
     runAfter:
     - run-systemtest
-    resources:
-      inputs:
-      - name: source
-        resource: gitOpsSource
-      - name: image
-        resource: appImage
     params:
-    - name: buildRevision
-      value: $(params.buildRevision)
     - name: environment
       value: production
     - name: argo-app-name
       value: app-prod
+    - name: configGitUrl
+      value: $(params.configGitUrl)
+    - name: appImage
+      value: $(params.appImage)
+    - name: buildRevision
+      value: $(params.buildRevision)
+    workspaces:
+    - name: config-source
+      workspace: config-source
 
   - name: run-prod-smoketest
     taskRef:
       name: run-smoketest
     runAfter:
     - deploy-prod
-    resources:
-      inputs:
-      - name: source
-        resource: appSource
     params:
     - name: gateway
       value: 'example.com'
+    - name: buildRevision
+      value: $(params.buildRevision)
+    - name: appGitUrl
+      value: $(params.appGitUrl)
+    workspaces:
+    - name: app-source
+      workspace: app-source
 ---
+

@@ -5,21 +5,31 @@ metadata:
 spec:
   params:
   - name: buildRevision
-  - name: destinationImage
-    description: Parameter Description
-    default: "$(outputs.resources.builtImage.url)"
-  resources:
-    inputs:
-    - name: source
-      type: git
-    outputs:
-    - name: builtImage
-      type: image
+  - name: appGitUrl
+  - name: appImage
+  workspaces:
+  - name: app-source
 
   steps:
+  - name: git-checkout
+    image: alpine/git:v2.26.2
+    workingDir: "$(workspaces.app-source.path)"
+    script: |
+      #!/usr/bin/env sh
+      set -e
+
+      eval $(ssh-agent)
+      ssh-add ~/.ssh/id_*
+      git config --global core.sshCommand 'ssh -o StrictHostKeyChecking=accept-new'
+
+      git init
+      git remote add origin $(params.appGitUrl)
+      git fetch --depth 1 origin $(params.buildRevision)
+      git checkout FETCH_HEAD
+
   - name: build-sources
     image: sdaschner/maven-jdk14:quarkus-deps-1.5.1-b5
-    workingDir: "/workspace/source/app/"
+    workingDir: "$(workspaces.app-source.path)/app"
     command:
     - /usr/bin/mvn
     args:
@@ -35,8 +45,8 @@ spec:
 
   - name: build-image
     image: quay.io/buildah/stable
-    workingDir: "/workspace/source/app/"
-    command: ['buildah', 'bud', '--tls-verify=false', '--layers', '-f', 'Dockerfile', '-t', '$(inputs.params.destinationImage):$(inputs.params.buildRevision)', '.']
+    workingDir: "$(workspaces.app-source.path)/app"
+    command: ['buildah', 'bud', '--tls-verify=false', '--layers', '-f', 'Dockerfile', '-t', '$(params.appImage):$(params.buildRevision)', '.']
     volumeMounts:
     - name: varlibc
       mountPath: /var/lib/containers
@@ -47,7 +57,7 @@ spec:
 
   - name: build-push
     image: quay.io/buildah/stable
-    command: ["buildah", "push", "--tls-verify=false", "$(inputs.params.destinationImage):$(inputs.params.buildRevision)", "docker://$(inputs.params.destinationImage):$(inputs.params.buildRevision)"]
+    command: ["buildah", "push", "--tls-verify=false", "$(params.appImage):$(params.buildRevision)", "docker://$(params.appImage):$(params.buildRevision)"]
     volumeMounts:
     - name: varlibc
       mountPath: /var/lib/containers
