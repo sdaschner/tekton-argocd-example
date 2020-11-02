@@ -35,13 +35,6 @@ spec:
     args:
     - clean
     - package
-    env:
-    - name: MAVEN_OPTS
-      value: "-Xms2G -Xmx4G"
-    resources:
-      requests:
-        cpu: '2'
-        memory: '4Gi'
 
   - name: build-image
     image: quay.io/buildah/stable

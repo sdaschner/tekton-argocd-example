@@ -38,11 +38,7 @@ spec:
 
 #      env:
 #      - name: MAVEN_OPTS
-#        value: "-Xms2G -Xmx4G"
-#      resources:
-#        requests:
-#          cpu: '2'
-#          memory: '4Gi'
+#        value: "-X..."
 
   params:
   - name: buildRevision
