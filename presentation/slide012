@@ -1,0 +1,13 @@
+
+
+
+
+
+            Conclusion: Tekton & ArgoCD
+
+            • Flexible solution as of today
+            • Needs Kubernetes knowledge
+            • Some gotchas, e.g.
+              • Istio namespace sidecar injection
+              • Separate namespace recommended
+              • Secret configuration
