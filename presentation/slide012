@@ -11,3 +11,4 @@
               • Istio namespace sidecar injection
               • Separate namespace recommended
               • Secret configuration
+              • Service accounts
