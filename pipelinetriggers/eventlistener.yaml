@@ -19,5 +19,5 @@ spec:
     bindings:
     - ref: build-deploy-binding
     template:
-      name: build-deploy-template
+      ref: build-deploy-template
 ---
