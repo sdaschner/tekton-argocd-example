@@ -41,7 +41,18 @@ EOM
 
 kubectl apply -f tekton-git-ssh-secret.yaml
 
-create your Docker registry secret (called regsecret)
+# create your Docker registry secret, for example:
+cat ~/.docker/config.json | base64 -w 0
+cat > regsecret.yaml << EOM
+kind: Secret
+apiVersion: v1
+metadata:
+  name: regsecret
+data:
+  .dockercfg: <base 64 data>
+type: kubernetes.io/dockercfg
+EOM
+
 kubectl apply -n tekton-pipelines -f regsecret.yaml
 ----
 
